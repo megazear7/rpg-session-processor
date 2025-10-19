@@ -1,8 +1,8 @@
 import OpenAI from 'openai';
+import path from "path";
 import { env } from './env.js';
-import fs from 'fs';
+import { promises as fs } from 'fs';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { audioPath } from './fs.js';
 
 export const model = 'gpt-audio-2025-08-28';
 
@@ -11,27 +11,16 @@ export const client = new OpenAI({
     baseURL: 'https://api.openai.com/v1',
 });
 
-export async function initializeMessages(): Promise<Array<ChatCompletionMessageParam>> {
-    if (!fs.existsSync(audioPath)) {
-        throw new Error(`Audio file not found at ${audioPath}`);
-    }
+export async function sendAndSave(audioFile: string, outputFile: string, prompt: string): Promise<void> {
+    const filePath = path.join(process.cwd(), 'output', outputFile);
+    console.log(`Generating ${outputFile}...`);
+    const summary = await sendMessage(audioFile, prompt.trim());
+    await fs.writeFile(filePath, summary, 'utf-8');
+    console.log(`Response saved to ${outputFile}`);
+}
 
-    const audioBuffer = fs.readFileSync(audioPath);
-    const base64Audio = audioBuffer.toString('base64');
-    return [
-        {
-            role: 'user',
-            content: [
-                {
-                    type: 'input_audio',
-                    input_audio: {
-                        data: base64Audio,
-                        format: 'mp3',
-                    },
-                },
-            ],
-        },
-    ];
+export async function sendMessage(audioFile: string, prompt: string): Promise<string> {
+    return getResponse(await buildMessages(audioFile, prompt));
 }
 
 export async function getResponse(messages: Array<ChatCompletionMessageParam>): Promise<string> {
@@ -40,11 +29,37 @@ export async function getResponse(messages: Array<ChatCompletionMessageParam>): 
     return response.choices[0]?.message?.content || '';
 }
 
-export function addMessage(messages: Array<ChatCompletionMessageParam>, prompt: string) {
-    messages.push({ role: 'user', content: [ { type: 'text', text: prompt } ] });
-}
+export async function buildMessages(audioFile: string, prompt: string): Promise<Array<ChatCompletionMessageParam>> {
+    const filePath = path.join(process.cwd(), 'input', audioFile);
 
-export async function sendNewMessage(messages: Array<ChatCompletionMessageParam>, prompt: string): Promise<string> {
-    addMessage(messages, prompt);
-    return getResponse(messages);
+    try {
+        await fs.access(filePath);
+    } catch {
+        throw new Error(`Audio file not found at ${filePath}`);
+    }
+
+    const audioBuffer = await fs.readFile(filePath);
+    const base64Audio = audioBuffer.toString('base64');
+    const messages: Array<ChatCompletionMessageParam> = [];
+
+    messages.push(
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'text',
+                    text: prompt
+                },
+                {
+                    type: 'input_audio',
+                    input_audio: {
+                        data: base64Audio,
+                        format: 'mp3',
+                    },
+                }
+            ]
+        }
+    );
+
+    return messages;
 }
