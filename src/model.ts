@@ -25,6 +25,9 @@ export async function sendAndSave(audioFile: string, outputFile: string, prompt:
 export async function sendMessage(audioFile: string, prompt: string): Promise<string> {
     console.log(`🚀 Starting processing for audio file: ${audioFile}`);
 
+    const instructions = await readInstructions();
+    const enhancedPrompt = instructions ? `${instructions}\n\n${prompt}` : prompt;
+
     const filePath = await validateAudioFile(audioFile);
     const duration = await getAudioDuration(filePath);
     console.log(`📏 Audio duration: ${formatDuration(duration)}`);
@@ -33,14 +36,14 @@ export async function sendMessage(audioFile: string, prompt: string): Promise<st
 
     if (duration <= maxDuration) {
         console.log('⚡ Audio is short enough for direct transcription');
-        return await transcribeDirect(audioFile, prompt);
+        return await transcribeDirect(audioFile, enhancedPrompt);
     }
 
     console.log('✂️  Audio is long, splitting into parts');
-    const transcriptions = await splitAndTranscribe(audioFile, filePath, duration, maxDuration, prompt);
+    const transcriptions = await splitAndTranscribe(audioFile, filePath, duration, maxDuration, enhancedPrompt);
 
     console.log('🔗 Synthesizing transcriptions into final result');
-    const finalResult = await synthesizeTranscriptions(transcriptions);
+    const finalResult = await synthesizeTranscriptions(transcriptions, instructions);
 
     console.log('🧹 Cleaning up progress files');
     await cleanupProgressFiles(audioFile);
@@ -136,10 +139,12 @@ async function splitAndTranscribe(
     return transcriptions;
 }
 
-async function synthesizeTranscriptions(transcriptions: string[]): Promise<string> {
+async function synthesizeTranscriptions(transcriptions: string[], instructions: string | null): Promise<string> {
     console.log('🤖 Starting synthesis with text model');
 
-    const synthesisPrompt = `You are given transcriptions from different parts of a single audio file. Each transcription comes from an audio model that listened to a 30-minute segment of the full audio. Your task is to combine these transcriptions into a single, coherent transcription of the entire audio file. Ensure the combined text flows naturally, removing any redundancies or overlaps between parts. Do not add any new content or interpretations.
+    const instructionsText = instructions ? `\n\nAdditional Instructions:\n${instructions}` : '';
+
+    const synthesisPrompt = `You are given transcriptions from different parts of a single audio file. Each transcription comes from an audio model that listened to a 30-minute segment of the full audio. Your task is to combine these transcriptions into a single, coherent transcription of the entire audio file. Ensure the combined text flows naturally, removing any redundancies or overlaps between parts. Do not add any new content or interpretations.${instructionsText}
 
 Transcriptions:
 ${transcriptions.map((t, i) => `Part ${i + 1}: ${t}`).join('\n\n')}
@@ -264,4 +269,15 @@ async function splitAudio(filePath: string, partPath: string, startTime: number,
             .on('error', reject)
             .run();
     });
+}
+
+async function readInstructions(): Promise<string | null> {
+    const instructionsPath = path.join(process.cwd(), 'input', 'instructions.txt');
+    try {
+        const instructions = await fs.readFile(instructionsPath, 'utf-8');
+        return instructions.trim() || null;
+    } catch {
+        console.log('⚠️  Instructions file not found or empty, proceeding without it');
+        return null;
+    }
 }
