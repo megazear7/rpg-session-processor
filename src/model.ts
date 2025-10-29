@@ -5,6 +5,7 @@ import { promises as fs } from 'fs';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { fileTypeFromBuffer } from 'file-type';
 import ffmpeg from 'fluent-ffmpeg';
+import { titlePrompt, synthesisPrompt, adjustmentPrompt } from './prompts.js';
 
 export const audioModel = 'gpt-audio-2025-08-28';
 export const textModel = 'gpt-4.1-2025-04-14';
@@ -14,19 +15,24 @@ export const client = new OpenAI({
     baseURL: 'https://api.openai.com/v1',
 });
 
-export async function sendAndSave(audioFile: string, outputFile: string, prompt: string): Promise<void> {
-    const filePath = path.join(process.cwd(), 'output', outputFile);
-    console.log(`Generating ${outputFile}...`);
-    const summary = await sendMessage(audioFile, prompt.trim());
-    await fs.writeFile(filePath, summary, 'utf-8');
-    console.log(`Response saved to ${outputFile}`);
+export async function sendAndSave(audioFile: string, outputFile: string, length: number, prompt: string): Promise<void> {
+    const audioFileBase = path.basename(audioFile, path.extname(audioFile));
+    const filePath = path.join(process.cwd(), 'output', audioFileBase, outputFile);
+    const outputDir = path.join(process.cwd(), 'output', audioFileBase);
+    await fs.mkdir(outputDir, { recursive: true });
+    console.log(`Generating ${filePath}...`);
+    const instructionsPath = path.join(process.cwd(), '.instructions.txt');
+    const instructions = await fs.readFile(instructionsPath, 'utf-8');
+    const finalPrompt = `${instructions}\n\n${prompt}`;
+    const content = await sendMessage(audioFile, finalPrompt.trim());
+    const finalContent = length ? await adjustContentLength(content, length) : content;
+    await fs.writeFile(filePath, finalContent, 'utf-8');
+    await createTitle(audioFile, finalContent, 'title.txt');
+    console.log(`Response saved to ${filePath}`);
 }
 
 export async function sendMessage(audioFile: string, prompt: string): Promise<string> {
     console.log(`🚀 Starting processing for audio file: ${audioFile}`);
-
-    const instructions = await readInstructions();
-    const enhancedPrompt = instructions ? `${instructions}\n\n${prompt}` : prompt;
 
     const filePath = await validateAudioFile(audioFile);
     const duration = await getAudioDuration(filePath);
@@ -36,14 +42,14 @@ export async function sendMessage(audioFile: string, prompt: string): Promise<st
 
     if (duration <= maxDuration) {
         console.log('⚡ Audio is short enough for direct transcription');
-        return await transcribeDirect(audioFile, enhancedPrompt);
+        return await transcribeDirect(audioFile, prompt);
     }
 
     console.log('✂️  Audio is long, splitting into parts');
-    const transcriptions = await splitAndTranscribe(audioFile, filePath, duration, maxDuration, enhancedPrompt);
+    const transcriptions = await splitAndTranscribe(audioFile, filePath, duration, maxDuration, prompt);
 
     console.log('🔗 Synthesizing transcriptions into final result');
-    const finalResult = await synthesizeTranscriptions(transcriptions, instructions);
+    const finalResult = await synthesizeTranscriptions(transcriptions);
 
     console.log('🧹 Cleaning up progress files');
     await cleanupProgressFiles(audioFile);
@@ -139,22 +145,13 @@ async function splitAndTranscribe(
     return transcriptions;
 }
 
-async function synthesizeTranscriptions(transcriptions: string[], instructions: string | null): Promise<string> {
+async function synthesizeTranscriptions(transcriptions: string[]): Promise<string> {
     console.log('🤖 Starting synthesis with text model');
-
-    const instructionsText = instructions ? `\n\nAdditional Instructions:\n${instructions}` : '';
-
-    const synthesisPrompt = `You are given transcriptions from different parts of a single audio file. Each transcription comes from an audio model that listened to a 30-minute segment of the full audio. Your task is to combine these transcriptions into a single, coherent transcription of the entire audio file. Ensure the combined text flows naturally, removing any redundancies or overlaps between parts. Do not add any new content or interpretations.${instructionsText}
-
-Transcriptions:
-${transcriptions.map((t, i) => `Part ${i + 1}: ${t}`).join('\n\n')}
-
-Combined transcription:`;
 
     const synthesisMessages: Array<ChatCompletionMessageParam> = [
         {
             role: 'user',
-            content: synthesisPrompt,
+            content: synthesisPrompt(transcriptions),
         },
     ];
 
@@ -201,7 +198,7 @@ export async function getResponse(messages: Array<ChatCompletionMessageParam>, m
 
 export async function buildMessages(audioFile: string, prompt: string): Promise<Array<ChatCompletionMessageParam>> {
     const filePath = path.join(process.cwd(), 'input', audioFile);
-    console.log(`Reading audio file from ${filePath}...`);
+    console.log(`🔍 Reading audio file from ${filePath}...`);
 
     // Check if file exists
     try {
@@ -271,13 +268,51 @@ async function splitAudio(filePath: string, partPath: string, startTime: number,
     });
 }
 
-async function readInstructions(): Promise<string | null> {
-    const instructionsPath = path.join(process.cwd(), 'input', 'instructions.txt');
-    try {
-        const instructions = await fs.readFile(instructionsPath, 'utf-8');
-        return instructions.trim() || null;
-    } catch {
-        console.log('⚠️  Instructions file not found or empty, proceeding without it');
-        return null;
+export async function createTitle(audioFile: string, story: string, outputFilename: string): Promise<void> {
+    const audioFileBase = path.basename(audioFile, path.extname(audioFile));
+    const outputFile = path.join(process.cwd(), 'output', audioFileBase, outputFilename);
+    const response = await client.chat.completions.create({
+        model: textModel,
+        messages: [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'text',
+                        text: titlePrompt(story),
+                    },
+                ],
+            },
+        ]
+    });
+    const title = response.choices[0]?.message?.content || '';
+    console.log(`📝 Title: ${title}`);
+    await fs.writeFile(outputFile, title, 'utf-8');
+    console.log(`💾 Saved title to ${outputFile}`);
+}
+
+async function adjustContentLength(content: string, targetWordCount: number): Promise<string> {
+    console.log(`📝 Adjusting content to approximately ${targetWordCount} words using text model`);
+
+    const currentWordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+    console.log(`📊 Current word count: ${currentWordCount}, Target: ${targetWordCount}`);
+
+    if (Math.abs(currentWordCount - targetWordCount) / targetWordCount < 0.1) {
+        console.log('✅ Content already close to target length, skipping adjustment');
+        return content;
     }
+
+    const messages: Array<ChatCompletionMessageParam> = [
+        {
+            role: 'user',
+            content: adjustmentPrompt(content, targetWordCount, currentWordCount),
+        },
+    ];
+
+    const adjustedContent = await getResponse(messages, textModel);
+
+    const finalWordCount = adjustedContent.split(/\s+/).filter(word => word.length > 0).length;
+    console.log(`📝 Content adjusted to ${finalWordCount} words`);
+
+    return adjustedContent;
 }

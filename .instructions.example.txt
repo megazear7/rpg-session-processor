@@ -1,0 +1,12 @@
+The players are:
+ - Bob
+ - Joe
+ - Steve (Sometimes referred to as either Gram or Mom)
+
+The game master is:
+ - Smith (Sometimes referred to as dad when Bob is speaking)
+
+The characters are:
+ - Ragano: A Wood Elf Rogue played by Bob
+ - Drokel: A Human Fighter played by Joe
+ - Harok: A Halfling Rogue played by Steve
