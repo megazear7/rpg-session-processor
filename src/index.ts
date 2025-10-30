@@ -11,7 +11,7 @@ if (!audioFileName) {
 
 console.log(`🎵 Processing audio file: ${audioFileName}`);
 
-await sendAndSave(audioFileName, 'story.txt', 200,`
+await sendAndSave(audioFileName, 'story', 200,`
 You are an expert game master and writer specializing in tabletop roleplaying games.
 I will provide an audio file containing a recorded TTRPG session.
 Your task is to listen to the audio, analyze the content, and create an engaging and narrative-driven session summary.
@@ -22,7 +22,7 @@ Do not write like AI. Instead, write like a very good fantasy author.
 Do not mention the word count in the summary and do not include any "Here is your story" preamble.
 `);
 
-await sendAndSave(audioFileName, 'summary.txt', 100, `
+await sendAndSave(audioFileName, 'summary', 100, `
 Please provide a concise summary of the session audio.
 Focus on the players, their actions, and events in the game at the table, not the in-world story.
 Use bullet points, short sentences, and simple language so it is easy for the game master to quickly review what happened.
