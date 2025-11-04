@@ -6,5 +6,5 @@ output
 input
 .vscode
 .DS_Store
-.instructions.txt
+instructions.txt
 config.json

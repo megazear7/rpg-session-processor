@@ -29,7 +29,7 @@ A AI-powered tool that transcribes and summarizes tabletop roleplaying game (TTR
 npm install
 ```
 
-### Set up environment variables
+### Configurations
 
 Create a `.env` file in the root directory.
 
@@ -37,18 +37,41 @@ Create a `.env` file in the root directory.
 MODEL_API_KEY=your_openai_api_key_here
 ```
 
-### Update instructions
+Create a `config.json` file in the root directory.
 
-Update the player and character relationships in `src/index.ts`:
+```json
+{
+    "models": {
+        "text": {
+            "model": "grok-4-0709",
+            "baseURL": "https://api.x.ai/v1"
+        },
+        "audio": {
+            "model": "gpt-audio-mini-2025-10-06",
+            "baseURL": "https://api.openai.com/v1"
+        }
+    }
+}
+```
 
-```typescript
-const instructions = `
+Create an `instructions.txt` file in the root directory.
+
+```txt
+You are an AI assistant that helps writes stories and take notes based on tabletop roleplaying game session audio recordings.
+Your name is "Wiz", the game master at the table may address you directly in the audio and give you specific instructions to follow.
+
 The players are:
- - Player Name
+ - Bob
+ - Joe
+ - Steve (Sometimes referred to as either Gram or Mom)
+
+The game master is:
+ - Smith (Sometimes referred to as dad when Bob is speaking)
 
 The characters are:
- - Character Name: Description played by Player Name
-`;
+ - Ragano: A Wood Elf Rogue played by Bob
+ - Drokel: A Human Fighter played by Joe
+ - Harok: A Halfling Rogue played by Steve
 ```
 
 ## Usage

@@ -22,7 +22,7 @@ export async function sendAndSave(audioFile: string, outputName: string, wordsPe
     console.log(`🚀 Generating ${outputName}...`);
     await fs.mkdir(outputDir, { recursive: true });
     const audioFileBase = path.basename(audioFile, path.extname(audioFile));
-    const instructionsPath = path.join(process.cwd(), '.instructions.txt');
+    const instructionsPath = path.join(process.cwd(), 'instructions.txt');
     const instructions = await fs.readFile(instructionsPath, 'utf-8');
     const length = await determineLengthInMinutes(audioFile) * wordsPerMinute;
 
