@@ -7,3 +7,4 @@ input
 .vscode
 .DS_Store
 .instructions.txt
+config.json

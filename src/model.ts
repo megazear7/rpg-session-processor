@@ -1,19 +1,15 @@
 import OpenAI from 'openai';
 import path from "path";
-import { env } from './env.js';
 import { promises as fs } from 'fs';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { fileTypeFromBuffer } from 'file-type';
 import ffmpeg from 'fluent-ffmpeg';
-import { titlePrompt, synthesisPrompt, adjustmentPrompt } from './prompts.js';
+import { textClientModel, audioClientModel, ClientModel } from './models.js';
+import { synthesisPrompt } from './prompt.synthesis.js';
+import { titlePrompt } from './prompt.title.js';
+import { adjustmentPrompt } from './prompt.adjustment.js';
 
-export const audioModel = 'gpt-audio-2025-08-28';
-export const textModel = 'gpt-4.1-2025-04-14';
 export const outputDir = path.join(process.cwd(), 'output');
-export const client = new OpenAI({
-    apiKey: env.MODEL_API_KEY,
-    baseURL: 'https://api.openai.com/v1',
-});
 
 /**
  * @param audioFile The audio file to process
@@ -21,13 +17,14 @@ export const client = new OpenAI({
  * @param length The number of words per minute of audio
  * @param prompt The prompt to use for generation
  */
-export async function sendAndSave(audioFile: string, outputName: string, length: number, prompt: string): Promise<void> {
+export async function sendAndSave(audioFile: string, outputName: string, wordsPerMinute: number, prompt: string): Promise<void> {
     // Prepare output directory and prompts
     console.log(`🚀 Generating ${outputName}...`);
     await fs.mkdir(outputDir, { recursive: true });
     const audioFileBase = path.basename(audioFile, path.extname(audioFile));
     const instructionsPath = path.join(process.cwd(), '.instructions.txt');
     const instructions = await fs.readFile(instructionsPath, 'utf-8');
+    const length = await determineLengthInMinutes(audioFile) * wordsPerMinute;
 
     // Create full output
     const renderedPrompt = `${instructions}\n\n${prompt}`;
@@ -36,12 +33,13 @@ export async function sendAndSave(audioFile: string, outputName: string, length:
     await fs.writeFile(filePathFull, content, 'utf-8');
 
     // Create final output
-    const finalContent = length ? await adjustContentLength(content, length) : content;
+    const finalContent = await adjustContentLength(content, length);
     const filePathFinal = path.join(process.cwd(), 'output', `${audioFileBase}-${outputName}.txt`);
     await fs.writeFile(filePathFinal, finalContent, 'utf-8');
 
     // Create title
-    await createTitle(finalContent, `${audioFileBase}-title.txt`);
+    const titlePathFull = path.join(process.cwd(), 'output', `${audioFileBase}-title.txt`);
+    await createTitle(finalContent, titlePathFull);
     console.log(`🚀 Response saved to ${filePathFinal}`);
 }
 
@@ -111,7 +109,7 @@ async function validateAudioFile(audioFile: string): Promise<string> {
 async function transcribeDirect(audioFile: string, prompt: string): Promise<string> {
     console.log('🎙️  Starting direct transcription');
     const messages = await buildMessages(audioFile, prompt);
-    const result = await getResponse(messages);
+    const result = await getResponse(messages, audioClientModel);
     console.log('🎙️  Direct transcription completed');
     return result;
 }
@@ -153,7 +151,7 @@ async function splitAndTranscribe(
         await splitAudio(filePath, partPath, startTime, partDuration);
 
         console.log(`🎙️  Transcribing part ${partIndex}`);
-        const partTranscription = await getResponse(await buildMessages(partFile, prompt));
+        const partTranscription = await getResponse(await buildMessages(partFile, prompt), audioClientModel);
 
         // Persist progress
         await fs.writeFile(progressFile, partTranscription, 'utf-8');
@@ -180,7 +178,7 @@ async function synthesizeTranscriptions(transcriptions: string[]): Promise<strin
         },
     ];
 
-    const result = await getResponse(synthesisMessages, textModel);
+    const result = await getResponse(synthesisMessages, textClientModel);
     console.log('🤖 Synthesis completed');
     return result;
 }
@@ -207,17 +205,17 @@ function formatDuration(seconds: number): string {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export async function getResponse(messages: Array<ChatCompletionMessageParam>, model: string = audioModel): Promise<string> {
-    const config: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
-        model,
+export async function getResponse(messages: Array<ChatCompletionMessageParam>, model: ClientModel): Promise<string> {
+    const chatConfig: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+        model: model.model,
         messages
     };
 
-    if (model === audioModel) {
-        config['modalities'] = ['text'];
+    if (model.model === textClientModel.model) {
+        chatConfig['modalities'] = ['text'];
     }
 
-    const response = await client.chat.completions.create(config);
+    const response = await model.client.chat.completions.create(chatConfig);
     return response.choices[0]?.message?.content || '';
 }
 
@@ -293,9 +291,9 @@ async function splitAudio(filePath: string, partPath: string, startTime: number,
     });
 }
 
-export async function createTitle(story: string, outputFilename: string): Promise<void> {
-    const response = await client.chat.completions.create({
-        model: textModel,
+export async function createTitle(story: string, outputFile: string): Promise<void> {
+    const response = await textClientModel.client.chat.completions.create({
+        model: textClientModel.model,
         messages: [
             {
                 role: 'user',
@@ -310,8 +308,8 @@ export async function createTitle(story: string, outputFilename: string): Promis
     });
     const title = response.choices[0]?.message?.content || '';
     console.log(`📝 Title: ${title}`);
-    await fs.writeFile(outputFilename, title, 'utf-8');
-    console.log(`💾 Saved title to ${outputFilename}`);
+    await fs.writeFile(outputFile, title, 'utf-8');
+    console.log(`💾 Saved title to ${outputFile}`);
 }
 
 async function adjustContentLength(content: string, targetWordCount: number): Promise<string> {
@@ -332,7 +330,7 @@ async function adjustContentLength(content: string, targetWordCount: number): Pr
         },
     ];
 
-    const adjustedContent = await getResponse(messages, textModel);
+    const adjustedContent = await getResponse(messages, textClientModel);
 
     const finalWordCount = adjustedContent.split(/\s+/).filter(word => word.length > 0).length;
     console.log(`📝 Content adjusted to ${finalWordCount} words`);
