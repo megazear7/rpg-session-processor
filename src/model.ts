@@ -151,7 +151,8 @@ async function splitAndTranscribe(
         await splitAudio(filePath, partPath, startTime, partDuration);
 
         console.log(`🎙️  Transcribing part ${partIndex}`);
-        const partTranscription = await getResponse(await buildMessages(partFile, prompt), audioClientModel);
+        const messages = await buildMessages(partFile, prompt);
+        const partTranscription = await getResponse(messages, audioClientModel);
 
         // Persist progress
         await fs.writeFile(progressFile, partTranscription, 'utf-8');
@@ -208,10 +209,10 @@ function formatDuration(seconds: number): string {
 export async function getResponse(messages: Array<ChatCompletionMessageParam>, model: ClientModel): Promise<string> {
     const chatConfig: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
         model: model.model,
-        messages
+        messages,
     };
 
-    if (model.model === textClientModel.model) {
+    if (model.model === audioClientModel.model) {
         chatConfig['modalities'] = ['text'];
     }
 
@@ -253,15 +254,15 @@ export async function buildMessages(audioFile: string, prompt: string): Promise<
             role: 'user',
             content: [
                 {
+                    type: 'text',
+                    text: prompt,
+                },
+                {
                     type: 'input_audio',
                     input_audio: {
                         data: base64Audio,
                         format: 'mp3',
                     },
-                },
-                {
-                    type: 'text',
-                    text: prompt,
                 },
             ],
         },

@@ -2,6 +2,14 @@
 
 A AI-powered tool that transcribes and summarizes tabletop roleplaying game (TTRPG) sessions from audio recordings. Uses OpenAI's latest audio and text models to create narrative summaries and bullet-point recaps of gaming sessions.
 
+## TODO
+
+Change the process:
+
+1. Use audio model to get bullet point outline of the events.
+2. Conver that into a short DM summary of where events ended with a text model.
+3. Conver it into a narrative with a text model.
+
 ## Features
 
 - 🎙️ **Audio Transcription**: Processes MP3 audio files of any length using OpenAI's advanced audio models

@@ -16,4 +16,4 @@ export const Config = z.object({
 });
 export type Config = z.infer<typeof Config>;
 
-export const config = Config.parse(await fs.readFile(path.join(process.cwd(), 'config.json'), 'utf-8'));
+export const config = Config.parse(JSON.parse(await fs.readFile(path.join(process.cwd(), 'config.json'), 'utf-8')));
