@@ -4,19 +4,26 @@ A AI-powered tool that transcribes and summarizes tabletop roleplaying game (TTR
 
 ## TODO
 
-Change the process:
+✅ **Completed Process:**
 
-1. Use audio model to get bullet point outline of the events.
-2. Conver that into a short DM summary of where events ended with a text model.
-3. Conver it into a narrative with a text model.
+1. **Bullet Points**: Use audio model to extract bullet point outline of events from audio
+2. **Play-by-Play**: Convert bullet points into detailed session summary with text model
+3. **DM Notes**: Create DM-focused notes from bullet points with text model
+4. **Summary**: Generate concise bullet-point overview from bullet points
+5. **Story**: Convert bullet points into narrative story with text model
+6. **Title**: Generate descriptive title from the story
 
 ## Features
 
 - 🎙️ **Audio Transcription**: Processes MP3 audio files of any length using OpenAI's advanced audio models
-- ✂️ **Smart Splitting**: Automatically splits long audio files (>30 minutes) into manageable segments
-- 📝 **Dual Summaries**:
-  - **Story Summary**: Narrative-driven recap written like a fantasy author (200 words)
-  - **Session Summary**: Bullet-point overview for quick reference (100 words)
+- ✂️ **Smart Splitting**: Automatically splits long audio files (>45 minutes) into manageable segments
+- 📝 **Multiple Outputs**:
+  - **Bullet Points**: Raw event outline extracted from audio
+  - **Play-by-Play**: Detailed chronological session summary
+  - **DM Notes**: Game master focused recap and notes
+  - **Summary**: Concise bullet-point overview for quick reference
+  - **Story**: Narrative-driven recap written like a fantasy author
+  - **Title**: Descriptive session title
 - 🏷️ **Auto-Titles**: Generates descriptive titles for each session
 - 🔄 **Progress Tracking**: Saves intermediate results to avoid reprocessing on interruptions
 - 🎯 **Character Mapping**: Pre-configured player and character relationships
@@ -24,9 +31,9 @@ Change the process:
 ## Prerequisites
 
 - Node.js 18+
-- OpenAI API key with access to:
-  - Audio models (`gpt-audio-2025-08-28`)
-  - Text models (`gpt-4.1-2025-04-14`)
+- API keys for your chosen AI providers:
+  - Text model API key (set as `TEXT_MODEL_API_KEY`)
+  - Audio model API key (set as `AUDIO_MODEL_API_KEY`)
 - FFmpeg (for audio processing)
 
 ## Installation
@@ -42,7 +49,8 @@ npm install
 Create a `.env` file in the root directory.
 
 ```env
-MODEL_API_KEY=your_openai_api_key_here
+TEXT_MODEL_API_KEY=your_text_model_api_key_here
+AUDIO_MODEL_API_KEY=your_audio_model_api_key_here
 ```
 
 Create a `config.json` file in the root directory.
@@ -51,16 +59,18 @@ Create a `config.json` file in the root directory.
 {
     "models": {
         "text": {
-            "model": "grok-4-0709",
-            "baseURL": "https://api.x.ai/v1"
+            "model": "your-text-model-name",
+            "baseURL": "https://your-text-model-api-endpoint.com/v1"
         },
         "audio": {
-            "model": "gpt-audio-mini-2025-10-06",
-            "baseURL": "https://api.openai.com/v1"
+            "model": "your-audio-model-name", 
+            "baseURL": "https://your-audio-model-api-endpoint.com/v1"
         }
     }
 }
 ```
+
+*Note: Check your AI provider's documentation for the latest available model names and API endpoints.*
 
 Create an `instructions.txt` file in the root directory.
 
@@ -100,9 +110,12 @@ npm start session1.mp3
 npm start family-dnd-recording.mp3
 ```
 
-This will generate three output files in the `output/` directory:
-- `story.txt` - Narrative summary (~200 words)
-- `summary.txt` - Bullet-point summary (~100 words)
+This will generate six output files in the `output/` directory:
+- `story.txt` - Narrative summary
+- `summary.txt` - Bullet-point summary
+- `play-by-play.txt` - Detailed session summary
+- `dm-notes.txt` - Game master notes and recap
+- `bullet-points.txt` - Raw event outline from audio
 - `title.txt` - Session title
 
 ## How It Works
@@ -111,24 +124,40 @@ This will generate three output files in the `output/` directory:
 
 1. **Parameter Validation**: Reads audio filename from command line arguments
 2. **File Validation**: Checks audio file format and integrity
-3. **Duration Analysis**: Determines if splitting is needed (>30 minutes)
-4. **Smart Splitting**: Divides long recordings into 30-minute segments
-5. **Parallel Transcription**: Processes segments concurrently using audio AI
-6. **Synthesis**: Combines transcriptions into coherent summaries
-7. **Length Adjustment**: Uses text AI to meet target word counts
+3. **Duration Analysis**: Determines if splitting is needed (>45 minutes)
+4. **Smart Splitting**: Divides long recordings into 45-minute segments
+5. **Bullet Point Extraction**: Uses audio AI to extract event outlines from segments
+6. **Synthesis**: Combines segment bullet points into coherent outline
+7. **Multiple Summaries**: Generates various summary types from bullet points:
+   - Play-by-play session summary
+   - DM notes for game masters
+   - Concise bullet-point summary
+   - Narrative story summary
+   - Descriptive title
 
 ### AI Models Used
 
-- **Audio Model**: `gpt-audio-2025-08-28` - For transcription and understanding spoken content
-- **Text Model**: `gpt-4.1-2025-04-14` - For synthesis, summarization, and content adjustment
+- **Audio Model**: Configurable via `config.json` - For transcription and understanding spoken content
+- **Text Model**: Configurable via `config.json` - For synthesis, summarization, and content adjustment
+
+Models are configured in `config.json` and can be updated to use the latest available models.
 
 ## Output Formats
 
-### Story Summary (story.txt)
-A narrative-driven recap written in the style of a fantasy author, focusing on character actions and story events rather than game mechanics.
+### Bullet Points (bullet-points.txt)
+Raw event outline extracted directly from the audio, capturing key events and plot points.
 
-### Session Summary (summary.txt)
-A concise bullet-point overview perfect for game masters to quickly review what happened during the session.
+### Play-by-Play (play-by-play.txt)
+Detailed chronological summary of the session events, providing a comprehensive recap of what happened (scales with audio length).
+
+### DM Notes (dm-notes.txt)
+Game master focused notes and recap, highlighting important plot points and character developments for future sessions (scales with audio length).
+
+### Summary (summary.txt)
+A concise bullet-point overview perfect for game masters to quickly review what happened during the session (scales with audio length).
+
+### Story (story.txt)
+A narrative-driven recap written in the style of a fantasy author, focusing on character actions and story events rather than game mechanics (scales with audio length).
 
 ### Title (title.txt)
 A descriptive title that captures the essence of the session.
