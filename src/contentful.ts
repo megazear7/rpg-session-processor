@@ -7,23 +7,23 @@ const client = createClient({
 });
 
 function textToRichText(text: string) {
-    return {
-        nodeType: 'document',
+    const paragraphs = text.split('\n').filter(line => line.trim() !== '').map(line => ({
+        nodeType: 'paragraph',
         data: {},
         content: [
             {
-                nodeType: 'paragraph',
-                data: {},
-                content: [
-                    {
-                        nodeType: 'text',
-                        value: text,
-                        marks: [],
-                        data: {}
-                    }
-                ]
+                nodeType: 'text',
+                value: line.trim(),
+                marks: [],
+                data: {}
             }
         ]
+    }));
+
+    return {
+        nodeType: 'document',
+        data: {},
+        content: paragraphs
     };
 }
 
