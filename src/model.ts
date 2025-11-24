@@ -13,6 +13,7 @@ import { storyPrompt } from './prompt.story.js';
 import { dmNotesPrompt } from './prompt.dm-notes.js';
 import { summaryPrompt } from './prompt.summary.js';
 import { createEvent } from './contentful.js';
+import { imagePrompt } from './prompt.image.js';
 
 export const outputDir = path.join(process.cwd(), 'output');
 export const instructionsPath = path.join(process.cwd(), 'instructions.txt');
@@ -83,6 +84,12 @@ export async function sendAndSave(audioFile: string, wordsPerMinute: number): Pr
     const titlePath = path.join(process.cwd(), 'output', `${audioFileBase}-title.txt`);
     await fs.writeFile(titlePath, title, 'utf-8');
     console.log(`🚀 Title saved to ${titlePath}`);
+
+    const imagePromptRendered = imagePrompt(story);
+    const image = await sendTextMessage(imagePromptRendered);
+    const imagePath = path.join(process.cwd(), 'output', `${audioFileBase}-image.txt`);
+    await fs.writeFile(imagePath, image, 'utf-8');
+    console.log(`🚀 Image saved to ${imagePath}`);
 
     console.log('🚀 Sending to Contentful');
     await createEvent(title, summary, story, dmNotes);
