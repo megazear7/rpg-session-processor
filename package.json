@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "contentful": "^11.9.0",
+    "contentful-management": "^11.63.1",
     "dotenv": "^16.5.0",
     "file-type": "^19.6.0",
     "fluent-ffmpeg": "^2.1.3",

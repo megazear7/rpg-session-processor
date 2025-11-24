@@ -12,6 +12,7 @@ import { playByPlayPrompt } from './prompt.play-by-play.js';
 import { storyPrompt } from './prompt.story.js';
 import { dmNotesPrompt } from './prompt.dm-notes.js';
 import { summaryPrompt } from './prompt.summary.js';
+import { createEvent } from './contentful.js';
 
 export const outputDir = path.join(process.cwd(), 'output');
 export const instructionsPath = path.join(process.cwd(), 'instructions.txt');
@@ -27,12 +28,19 @@ export async function sendAndSave(audioFile: string, wordsPerMinute: number): Pr
     // Prepare output directory and prompts
     console.log(`🚀 Generating...`);
     await fs.mkdir(outputDir, { recursive: true });
-    const audioFileBase = path.basename(audioFile, path.extname(audioFile));
-    const baseLength = await determineLengthInMinutes(audioFile) * wordsPerMinute;
+
+    // Prepare audio file (convert M4A to MP3 if needed)
+    const { processedAudioFile, convertedFilePath } = await prepareAudioFile(audioFile);
+
+    const audioFileBase = path.basename(processedAudioFile, path.extname(processedAudioFile));
+    const baseLength = await determineLengthInMinutes(processedAudioFile) * wordsPerMinute;
+
+    console.log(`🎧 Audio file processed: ${processedAudioFile}`);
+    console.log(`⏳ Estimated length: ${baseLength} minutes`);
 
     // Create bullet point summary from the audio
     const bulletPointsPromptRendered = bulletPointsPrompt();
-    const bulletPoints = await sendAudioMessage(audioFile, bulletPointsPromptRendered);
+    const bulletPoints = await sendAudioMessage(processedAudioFile, bulletPointsPromptRendered);
     const bulletPointsPath = path.join(process.cwd(), 'output', `${audioFileBase}-bullet-points.txt`);
     await fs.writeFile(bulletPointsPath, bulletPoints, 'utf-8');
     console.log(`🚀 Bullet Points saved to ${bulletPointsPath}`);
@@ -75,6 +83,9 @@ export async function sendAndSave(audioFile: string, wordsPerMinute: number): Pr
     const titlePath = path.join(process.cwd(), 'output', `${audioFileBase}-title.txt`);
     await fs.writeFile(titlePath, title, 'utf-8');
     console.log(`🚀 Title saved to ${titlePath}`);
+
+    console.log('🚀 Sending to Contentful');
+    await createEvent(title, summary, story, dmNotes);
 }
 
 async function sendTextMessage(prompt: string): Promise<string> {
@@ -328,4 +339,32 @@ async function splitAudio(filePath: string, partPath: string, startTime: number,
             .on('error', reject)
             .run();
     });
+}
+
+async function convertM4aToMp3(inputPath: string, outputPath: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+            .toFormat('mp3')
+            .on('end', () => resolve())
+            .on('error', reject)
+            .save(outputPath);
+    });
+}
+
+async function prepareAudioFile(audioFile: string): Promise<{ processedAudioFile: string, convertedFilePath: string | null }> {
+    const inputFilePath = path.join(process.cwd(), 'input', audioFile);
+    const buffer = await fs.readFile(inputFilePath);
+    let processedAudioFile = audioFile;
+    let convertedFilePath: string | null = null;
+
+    if (audioFile.toLowerCase().endsWith('.m4a')) {
+        console.log('🔄 Converting M4A to MP3...');
+        const audioFileBase = path.basename(audioFile, path.extname(audioFile));
+        convertedFilePath = path.join(process.cwd(), 'input', `${audioFileBase}.mp3`);
+        await convertM4aToMp3(inputFilePath, convertedFilePath);
+        processedAudioFile = `${audioFileBase}.mp3`;
+        console.log('✅ Conversion completed');
+    }
+
+    return { processedAudioFile, convertedFilePath };
 }
