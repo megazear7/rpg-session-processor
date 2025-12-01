@@ -85,6 +85,7 @@ export async function sendAndSave(audioFile: string, wordsPerMinute: number): Pr
     await fs.writeFile(titlePath, title, 'utf-8');
     console.log(`🚀 Title saved to ${titlePath}`);
 
+    // Create image prompt
     const imagePromptRendered = imagePrompt(story);
     const image = await sendTextMessage(imagePromptRendered);
     const imagePath = path.join(process.cwd(), 'output', `${audioFileBase}-image-prompt.txt`);
