@@ -53,7 +53,7 @@ TEXT_MODEL_API_KEY=your_text_model_api_key_here
 AUDIO_MODEL_API_KEY=your_audio_model_api_key_here
 ```
 
-Create a `config.json` file in the root directory.
+Create a `config/config.json` file.
 
 ```json
 {
@@ -72,7 +72,7 @@ Create a `config.json` file in the root directory.
 
 *Note: Check your AI provider's documentation for the latest available model names and API endpoints.*
 
-Create an `instructions.txt` file in the root directory.
+Create an `config/instructions.txt` file.
 
 ```txt
 You are an AI assistant that helps writes stories and take notes based on tabletop roleplaying game session audio recordings.
@@ -92,6 +92,18 @@ The characters are:
  - Harok: A Halfling Rogue played by Steve
 ```
 
+Create an `config/song.txt` file with an example song prompt
+
+```
+Epic orchestral ballad, classical symphony, no percussion, no guitars, no modern/pop elements.
+
+Male baritone lead (deep and theatrical British accent).
+Large SATB choir: grave, soaring harmonies—powerful yet mournful.
+Instrumentation: Full orchestra— deep cellos, violins, haunting strings, majestic pipe organ.
+
+Speaking parts are given on some lines and should be spoken with a different voice as described.
+```
+
 ## Usage
 
 ### 1. Prepare Your Audio
@@ -101,13 +113,13 @@ Place your TTRPG session recording (MP3 format) in the `input/` directory:
 ### 2. Run the Processor
 
 ```bash
-npm start <audio-file.mp3>
+npm start input/<audio-file.mp3>
 ```
 
 For example:
 ```bash
-npm start session1.mp3
-npm start family-dnd-recording.mp3
+npm start input/session1.mp3
+npm start input/dnd-recording.mp3
 ```
 
 This will generate six output files in the `output/` directory:

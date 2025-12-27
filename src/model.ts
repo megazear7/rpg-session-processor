@@ -14,6 +14,7 @@ import { dmNotesPrompt } from './prompt.dm-notes.js';
 import { summaryPrompt } from './prompt.summary.js';
 import { createEvent } from './contentful.js';
 import { imagePrompt } from './prompt.image.js';
+import { lyricsPrompt } from './prompt.lyrics.js';
 import { songPrompt } from './prompt.song.js';
 
 export const outputDir = path.join(process.cwd(), 'output');
@@ -26,7 +27,8 @@ export const instructions = await fs.readFile(instructionsPath, 'utf-8');
  * @param length The number of words per minute of audio
  * @param prompt The prompt to use for generation
  */
-export async function sendAndSave(audioFile: string, wordsPerMinute: number): Promise<void> {
+export async function sendAndSave(audioFilePath: string, wordsPerMinute: number): Promise<void> {
+    const audioFile = path.basename(audioFilePath);
     // Prepare output directory and prompts
     console.log(`🚀 Generating...`);
     await fs.mkdir(outputDir, { recursive: true });
@@ -93,8 +95,16 @@ export async function sendAndSave(audioFile: string, wordsPerMinute: number): Pr
     await fs.writeFile(imagePath, image, 'utf-8');
     console.log(`🚀 Image saved to ${imagePath}`);
 
+    // Create lyrics prompt
+    const lyricsPromptRendered = lyricsPrompt(story);
+    const lyrics = await sendTextMessage(lyricsPromptRendered);
+    const lyricsPath = path.join(process.cwd(), 'output', `${audioFileBase}-lyrics-prompt.txt`);
+    await fs.writeFile(lyricsPath, lyrics, 'utf-8');
+    console.log(`🚀 Lyrics saved to ${lyricsPath}`);
+
     // Create song prompt
-    const songPromptRendered = songPrompt(story);
+    const exampleSong = await fs.readFile('config/song.txt', 'utf-8');
+    const songPromptRendered = songPrompt(story, exampleSong);
     const song = await sendTextMessage(songPromptRendered);
     const songPath = path.join(process.cwd(), 'output', `${audioFileBase}-song-prompt.txt`);
     await fs.writeFile(songPath, song, 'utf-8');

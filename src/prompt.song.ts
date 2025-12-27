@@ -1,7 +1,18 @@
-export const songPrompt = (story: string): string => `
-${story}
+export const songPrompt = (lyrics: string, example: string): string => `
+Create a Suno prompt describing a song based on the following lyrics:
 
-Turn the above story into a song that tells the story.
-Include a speaking part in each verse, where a character from the story says a line that fits with the verse.
-Keep it short, no more than 3 verses and a repeated chorus that is easy to sing to.
+Lyrics:
+"""
+${lyrics.trim()}
+"""
+
+The prompt should be similar to the example below, but tailored to the provided lyrics.
+
+Example Prompt:
+"""
+${example.trim()}
+"""
+
+Only include the song description in your response.
+Do not include the lyrics or any other text.
 `.trim();
