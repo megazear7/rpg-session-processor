@@ -18,7 +18,6 @@ import { lyricsPrompt } from './prompt.lyrics.js';
 import { songPrompt } from './prompt.song.js';
 import { config } from './config.js';
 
-export const outputDir = path.join(process.cwd(), 'output');
 export const NO_INSTRUCTIONS = 'NO_INSTRUCTIONS';
 
 /**
@@ -31,7 +30,6 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const audioFile = path.basename(audioFilePath);
     // Prepare output directory and prompts
     console.log(`🚀 Generating...`);
-    await fs.mkdir(outputDir, { recursive: true });
 
     // Prepare audio file (convert M4A to MP3 if needed)
     const { processedAudioFile } = await prepareAudioFile(audioFile);
@@ -41,13 +39,18 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const instructions = await fs.readFile('config/instructions.txt', 'utf-8');
     const exampleSong = await fs.readFile('config/song.txt', 'utf-8');
 
+    const outputDir = path.join('output', audioFileBase);
+    await fs.mkdir(outputDir, { recursive: true });
+    const progressDir = path.join('output', audioFileBase, 'progress');
+    await fs.mkdir(progressDir, { recursive: true });
+
     console.log(`🎧 Audio file processed: ${processedAudioFile}`);
     console.log(`⏳ Estimated length: ${baseLength} words`);
 
     // Create bullet point summary from the audio
     const bulletPointsPromptRendered = bulletPointsPrompt();
-    const bulletPoints = await sendAudioMessage(processedAudioFile, instructions, bulletPointsPromptRendered);
-    const bulletPointsPath = path.join(process.cwd(), 'output', `${audioFileBase}-bullet-points.txt`);
+    const bulletPoints = await sendAudioMessage(outputDir, processedAudioFile, instructions, bulletPointsPromptRendered);
+    const bulletPointsPath = path.join(outputDir, `${audioFileBase}-bullet-points.txt`);
     await fs.writeFile(bulletPointsPath, bulletPoints, 'utf-8');
     console.log(`🚀 Bullet Points saved to ${bulletPointsPath}`);
 
@@ -55,7 +58,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const playByPlayWordCount = Math.ceil(baseLength * 0.8);
     const playByPlayPromptRendered = playByPlayPrompt(bulletPoints, playByPlayWordCount);
     const playByPlay = await sendTextMessage(instructions, playByPlayPromptRendered);
-    const playByPlayPath = path.join(process.cwd(), 'output', `${audioFileBase}-play-by-play.txt`);
+    const playByPlayPath = path.join(outputDir, `${audioFileBase}-play-by-play.txt`);
     await fs.writeFile(playByPlayPath, playByPlay, 'utf-8');
     console.log(`🚀 Play by Play saved to ${playByPlayPath}`);
 
@@ -63,7 +66,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const dmNotesWordCount = Math.ceil(baseLength * 0.6);
     const dmNotesPromptRendered = dmNotesPrompt(bulletPoints, dmNotesWordCount);
     const dmNotes = await sendTextMessage(instructions, dmNotesPromptRendered);
-    const dmNotesPath = path.join(process.cwd(), 'output', `${audioFileBase}-dm-notes.txt`);
+    const dmNotesPath = path.join(outputDir, `${audioFileBase}-dm-notes.txt`);
     await fs.writeFile(dmNotesPath, dmNotes, 'utf-8');
     console.log(`🚀 DM Notes saved to ${dmNotesPath}`);
 
@@ -71,7 +74,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const summaryWordCount = Math.ceil(baseLength * 0.4);
     const summaryPromptRendered = summaryPrompt(bulletPoints, summaryWordCount);
     const summary = await sendTextMessage(instructions, summaryPromptRendered);
-    const summaryPath = path.join(process.cwd(), 'output', `${audioFileBase}-summary.txt`);
+    const summaryPath = path.join(outputDir, `${audioFileBase}-summary.txt`);
     await fs.writeFile(summaryPath, summary, 'utf-8');
     console.log(`🚀 Summary saved to ${summaryPath}`);
 
@@ -79,35 +82,35 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const storyWordCount = Math.ceil(baseLength * 1.2);
     const storyPromptRendered = storyPrompt(bulletPoints, storyWordCount);
     const story = await sendTextMessage(instructions, storyPromptRendered);
-    const storyPath = path.join(process.cwd(), 'output', `${audioFileBase}-story.txt`);
+    const storyPath = path.join(outputDir, `${audioFileBase}-story.txt`);
     await fs.writeFile(storyPath, story, 'utf-8');
     console.log(`🚀 Story saved to ${storyPath}`);
 
     // Create title
     const titlePromptRendered = titlePrompt(story);
     const title = await sendTextMessage(NO_INSTRUCTIONS, titlePromptRendered);
-    const titlePath = path.join(process.cwd(), 'output', `${audioFileBase}-title.txt`);
+    const titlePath = path.join(outputDir, `${audioFileBase}-title.txt`);
     await fs.writeFile(titlePath, title, 'utf-8');
     console.log(`🚀 Title saved to ${titlePath}`);
 
     // Create image prompt
     const imagePromptRendered = imagePrompt(story);
     const image = await sendTextMessage(NO_INSTRUCTIONS, imagePromptRendered);
-    const imagePath = path.join(process.cwd(), 'output', `${audioFileBase}-image-prompt.txt`);
+    const imagePath = path.join(outputDir, `${audioFileBase}-image-prompt.txt`);
     await fs.writeFile(imagePath, image, 'utf-8');
     console.log(`🚀 Image saved to ${imagePath}`);
 
     // Create lyrics prompt
     const lyricsPromptRendered = lyricsPrompt(story);
     const lyrics = await sendTextMessage(NO_INSTRUCTIONS, lyricsPromptRendered);
-    const lyricsPath = path.join(process.cwd(), 'output', `${audioFileBase}-lyrics-prompt.txt`);
+    const lyricsPath = path.join(outputDir, `${audioFileBase}-lyrics-prompt.txt`);
     await fs.writeFile(lyricsPath, lyrics, 'utf-8');
     console.log(`🚀 Lyrics saved to ${lyricsPath}`);
 
     // Create song prompt
     const songPromptRendered = songPrompt(story, exampleSong);
     const song = await sendTextMessage(NO_INSTRUCTIONS, songPromptRendered);
-    const songPath = path.join(process.cwd(), 'output', `${audioFileBase}-song-prompt.txt`);
+    const songPath = path.join(outputDir, `${audioFileBase}-song-prompt.txt`);
     await fs.writeFile(songPath, song, 'utf-8');
     console.log(`🚀 Song saved to ${songPath}`);
 
@@ -160,7 +163,7 @@ async function determineLengthInMinutes(audioFile: string): Promise<number> {
     return Math.ceil(duration / 60);
 }
 
-async function sendAudioMessage(audioFile: string, instructions: string, prompt: string): Promise<string> {
+async function sendAudioMessage(outputDir: string, audioFile: string, instructions: string, prompt: string): Promise<string> {
     console.log(`🚀 Starting processing for audio file: ${audioFile}`);
 
     const maxDuration = 45 * 60; // 45 minutes in seconds
@@ -170,17 +173,14 @@ async function sendAudioMessage(audioFile: string, instructions: string, prompt:
 
     if (duration <= maxDuration) {
         console.log('⚡ Audio is short enough for direct listening');
-        return await listenDirect(audioFile, instructions, prompt);
+        return await listenDirect(filePath, instructions, prompt);
     }
 
     console.log('✂️  Audio is long, splitting into parts');
-    const bulletPoints = await splitAndListen(audioFile, filePath, duration, maxDuration, instructions, prompt);
+    const bulletPoints = await splitAndListen(outputDir, audioFile, filePath, duration, maxDuration, instructions, prompt);
 
     console.log('🔗 Synthesizing bullet points into final result');
     const finalResult = await sendTextMessage(instructions, synthesisPrompt(bulletPoints));
-
-    console.log('🧹 Cleaning up progress files');
-    await cleanupProgressFiles(audioFile);
 
     console.log('✅ Processing completed successfully');
     return finalResult;
@@ -220,6 +220,7 @@ async function listenDirect(audioFile: string, instructions: string, prompt: str
 }
 
 async function splitAndListen(
+    outputDir: string,
     audioFile: string,
     filePath: string,
     duration: number,
@@ -233,7 +234,7 @@ async function splitAndListen(
 
     for (let i = 0; i < parts; i++) {
         const partIndex = i + 1;
-        const progressFile = getProgressFileName(audioFile, partIndex);
+        const progressFile = getProgressFileName(outputDir, audioFile, partIndex);
 
         try {
             const existingBulletPoints = await fs.readFile(progressFile, 'utf-8');
@@ -250,13 +251,13 @@ async function splitAndListen(
         const startTime = i * maxDuration;
         const partDuration = Math.min(maxDuration, duration - startTime);
         const partFile = `${audioFile}_part_${partIndex}.mp3`;
-        const partPath = path.join(process.cwd(), 'input', partFile);
+        const partPath = path.join(outputDir, "progress", partFile);
 
         console.log(`✂️  Creating audio part: ${partFile} (${formatDuration(partDuration)})`);
         await splitAudio(filePath, partPath, startTime, partDuration);
 
         console.log(`🎙️  Listening to part ${partIndex}`);
-        const messages = await buildAudioMessages(partFile, instructions, prompt);
+        const messages = await buildAudioMessages(partPath, instructions, prompt);
         const partBulletPoints = await getResponse(messages, audioClientModel);
 
         // Persist progress
@@ -264,29 +265,14 @@ async function splitAndListen(
         console.log(`💾 Saved bullet points for part ${partIndex}`);
 
         bulletPoints.push(partBulletPoints);
-
-        // Clean up part file
-        await fs.unlink(partPath);
-        console.log(`🗑️  Cleaned up temporary file: ${partFile}`);
     }
 
     console.log('📝 Listened to all parts');
     return bulletPoints;
 }
 
-async function cleanupProgressFiles(audioFile: string): Promise<void> {
-    const outputDir = path.join(process.cwd(), 'output');
-    const files = await fs.readdir(outputDir);
-    const progressFiles = files.filter(file => file.startsWith(`${audioFile}_part_`) && file.endsWith('.txt'));
-
-    for (const file of progressFiles) {
-        await fs.unlink(path.join(outputDir, file));
-        console.log(`🗑️  Cleaned up progress file: ${file}`);
-    }
-}
-
-function getProgressFileName(audioFile: string, partIndex: number): string {
-    return path.join(process.cwd(), 'output', `${audioFile}_part_${partIndex}.txt`);
+function getProgressFileName(outputDir: string, audioFile: string, partIndex: number): string {
+    return path.join(outputDir, 'progress', `${audioFile}_part_${partIndex}.txt`);
 }
 
 function formatDuration(seconds: number): string {
@@ -310,8 +296,7 @@ async function getResponse(messages: Array<ChatCompletionMessageParam>, model: C
     return response.choices[0]?.message?.content || '';
 }
 
-async function buildAudioMessages(audioFile: string, instructions: string, prompt: string): Promise<Array<ChatCompletionMessageParam>> {
-    const filePath = path.join(process.cwd(), 'input', audioFile);
+async function buildAudioMessages(filePath: string, instructions: string, prompt: string): Promise<Array<ChatCompletionMessageParam>> {
     console.log(`🔍 Reading audio file from ${filePath}...`);
 
     // Check if file exists
