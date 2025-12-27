@@ -57,16 +57,21 @@ Create a `config/config.json` file.
 
 ```json
 {
-    "models": {
-        "text": {
-            "model": "your-text-model-name",
-            "baseURL": "https://your-text-model-api-endpoint.com/v1"
-        },
-        "audio": {
-            "model": "your-audio-model-name", 
-            "baseURL": "https://your-audio-model-api-endpoint.com/v1"
-        }
+  "length": {
+    "wordsPerMinuteOfAudio": 4,
+    "minimumWords": 300,
+    "maximumWords": 2000
+  },
+  "models": {
+    "text": {
+      "model": "your-text-model-name",
+      "baseURL": "https://your-text-model-api-endpoint.com/v1"
+    },
+    "audio": {
+      "model": "your-audio-model-name",
+      "baseURL": "https://your-audio-model-api-endpoint.com/v1"
     }
+  }
 }
 ```
 
