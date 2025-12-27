@@ -8,6 +8,9 @@ export const Config = z.object({
         minimumWords: z.number().optional(),
         maximumWords: z.number().optional(),
     }),
+    song: z.object({
+        modifiers: z.array(z.string()),
+    }),
     models: z.object({
         text: z.object({
             model: z.string().min(1, 'text model is required'),

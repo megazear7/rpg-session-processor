@@ -62,6 +62,16 @@ Create a `config/config.json` file.
     "minimumWords": 300,
     "maximumWords": 2000
   },
+  "song": {
+    "modifiers": [
+      "Slow and melodic without souring too high",
+      "Bard singing in a tavern",
+      "Incorporate folk instruments like acoustic guitar and violin",
+      "Evoke a sense of adventure and wonder",
+      "Orchestral background with light percussion",
+      "Warm and inviting vocal tone"
+    ]
+  },
   "models": {
     "text": {
       "model": "your-text-model-name",

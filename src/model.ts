@@ -38,6 +38,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     const baseLength = await determineBaseLength(processedAudioFile);
     const instructions = await fs.readFile('config/instructions.txt', 'utf-8');
     const exampleSong = await fs.readFile('config/song.txt', 'utf-8');
+    const songMod = getSongMod();
 
     const outputDir = path.join('output', audioFileBase);
     await fs.mkdir(outputDir, { recursive: true });
@@ -108,7 +109,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     console.log(`🚀 Lyrics saved to ${lyricsPath}`);
 
     // Create song prompt
-    const songPromptRendered = songPrompt(story, exampleSong);
+    const songPromptRendered = songPrompt(story, exampleSong, songMod);
     const song = await sendTextMessage(NO_INSTRUCTIONS, songPromptRendered);
     const songPath = path.join(outputDir, `${audioFileBase}-song-prompt.txt`);
     await fs.writeFile(songPath, song, 'utf-8');
@@ -397,4 +398,13 @@ async function prepareAudioFile(audioFile: string): Promise<{ processedAudioFile
     }
 
     return { processedAudioFile, convertedFilePath };
+}
+
+function getSongMod(): string | undefined{
+    const modifiers = config.song.modifiers;
+    if (modifiers.length === 0) {
+        return undefined;
+    }
+    const randomIndex = Math.floor(Math.random() * modifiers.length);
+    return modifiers[randomIndex];
 }
