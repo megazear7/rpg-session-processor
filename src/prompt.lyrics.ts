@@ -26,6 +26,7 @@ ${story}
 
 Turn the above story into a song that tells the story.
 Include a speaking part in each verse, where a character from the story says a line that fits with the verse.
+Remember to not include the character's name, just describe the sound of their voice in square brackets.
 Keep it short, no more than 3 verses and a repeated chorus that is easy to sing to.
 Only include the song lyrics in your response. Do not include any explanations, title, or other text.
 `.trim();

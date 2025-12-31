@@ -64,12 +64,12 @@ Create a `config/config.json` file.
   },
   "song": {
     "modifiers": [
-      "Slow and melodic without souring too high",
-      "Bard singing in a tavern",
-      "Incorporate folk instruments like acoustic guitar and violin",
-      "Evoke a sense of adventure and wonder",
-      "Orchestral background with light percussion",
-      "Warm and inviting vocal tone"
+      "Slow and melodic without souring too high.",
+      "Bard singing in a tavern.",
+      "Incorporate folk instruments like acoustic guitar and violin.",
+      "Evoke a sense of adventure and wonder.",
+      "Orchestral background with light percussion.",
+      "Warm and inviting vocal tone."
     ]
   },
   "models": {
