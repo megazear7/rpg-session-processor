@@ -80,7 +80,7 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     console.log(`🚀 Summary saved to ${summaryPath}`);
 
     // Create story from the bullet points
-    const storyWordCount = Math.ceil(baseLength * 1.2);
+    const storyWordCount = Math.ceil(baseLength * 1.75);
     const storyPromptRendered = storyPrompt(bulletPoints, storyWordCount);
     const story = await sendTextMessage(instructions, storyPromptRendered);
     const storyPath = path.join(outputDir, `${audioFileBase}-story.txt`);
@@ -102,7 +102,8 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
     console.log(`🚀 Image saved to ${imagePath}`);
 
     // Create lyrics prompt
-    const lyricsPromptRendered = lyricsPrompt(story);
+    const verseCount = Math.floor(Math.random() * 3) + 2; // Randomly choose between 2 and 4 verses
+    const lyricsPromptRendered = lyricsPrompt(story, verseCount);
     const lyrics = await sendTextMessage(NO_INSTRUCTIONS, lyricsPromptRendered);
     const lyricsPath = path.join(outputDir, `${audioFileBase}-lyrics-prompt.txt`);
     await fs.writeFile(lyricsPath, lyrics, 'utf-8');
@@ -179,6 +180,11 @@ async function sendAudioMessage(outputDir: string, audioFile: string, instructio
 
     console.log('✂️  Audio is long, splitting into parts');
     const bulletPoints = await splitAndListen(outputDir, audioFile, filePath, duration, maxDuration, instructions, prompt);
+
+    // Save bulletPoints to file before synthesis
+    const bulletPointsPath = path.join(outputDir, `${audioFile}-all-bullet-points.txt`);
+    await fs.writeFile(bulletPointsPath, bulletPoints.join('\n\n'), 'utf-8');
+    console.log(`💾 Saved combined bullet points to ${bulletPointsPath}`);
 
     console.log('🔗 Synthesizing bullet points into final result');
     const finalResult = await sendTextMessage(instructions, synthesisPrompt(bulletPoints));

@@ -8,7 +8,7 @@ ${lyrics.trim()}
 
 The prompt should be similar to the example below, but tailored to the provided lyrics${songMod ? ` but modified to include the following elements: ${songMod}` : `.`}
 
-Example Prompt:
+Example prompt:
 """
 ${example.trim()}
 """
