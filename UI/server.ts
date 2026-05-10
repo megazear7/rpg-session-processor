@@ -14,6 +14,7 @@ const inputDir = path.join(repoRoot, 'input');
 const sourcePublicDir = path.join(repoRoot, 'UI', 'public');
 const builtPublicDir = path.join(repoRoot, 'dist', 'UI', 'public');
 const PORT = Number(process.env.PORT || 3000);
+let sendAndSaveModulePromise: Promise<typeof import('../src/model.js')> | undefined;
 
 await fs.mkdir(inputDir, { recursive: true });
 
@@ -116,7 +117,7 @@ async function runJob(jobId: string, uploadedFileName: string): Promise<void> {
     }));
 
     try {
-        const { sendAndSave } = await import('../src/model.js');
+        const { sendAndSave } = await loadSendAndSaveModule();
         const result = await sendAndSave(uploadedFileName, {
             onStepUpdate: async ({ key, status, detail }) => {
                 updateJob(jobId, (job) => ({
@@ -156,7 +157,10 @@ async function runJob(jobId: string, uploadedFileName: string): Promise<void> {
 }
 
 function sanitizeFileName(fileName: string): string {
-    return path.basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '-');
+    const extension = path.extname(fileName).toLowerCase();
+    const safeExtension = extension === '.m4a' ? '.m4a' : '.mp3';
+    const safeBaseName = path.basename(fileName, extension).replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-');
+    return `${safeBaseName || 'session'}${safeExtension}`;
 }
 
 function updateJob(jobId: string, updater: (job: JobSnapshot) => JobSnapshot): void {
@@ -206,4 +210,9 @@ function markCurrentStepFailed(steps: Step[], message: string): Step[] {
         status: 'failed',
         detail: message,
     } : step);
+}
+
+function loadSendAndSaveModule() {
+    sendAndSaveModulePromise ??= import('../src/model.js');
+    return sendAndSaveModulePromise;
 }

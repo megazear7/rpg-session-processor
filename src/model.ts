@@ -70,13 +70,13 @@ export interface SendAndSaveResult {
 }
 
 /**
- * @param audioFile The audio file to process
+ * @param audioFileName The audio file to process
  * @param outputName The name of the output file
  * @param length The number of words per minute of audio
  * @param prompt The prompt to use for generation
  */
-export async function sendAndSave(audioFilePath: string, options: SendAndSaveOptions = {}): Promise<SendAndSaveResult> {
-    const audioFile = path.basename(audioFilePath);
+export async function sendAndSave(audioFileName: string, options: SendAndSaveOptions = {}): Promise<SendAndSaveResult> {
+    const audioFile = path.basename(audioFileName);
     const artifacts: ProcessingArtifact[] = [];
     // Prepare output directory and prompts
     console.log(`🚀 Generating...`);

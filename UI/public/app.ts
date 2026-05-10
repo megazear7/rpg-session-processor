@@ -421,23 +421,38 @@ class RpgSessionUi extends LitElement {
             return;
         }
 
-        this.poller = window.setInterval(async () => {
+        const poll = async () => {
             if (!this.job) {
                 this.stopPolling();
                 return;
             }
 
-            const response = await fetch(`/api/jobs/${this.job.id}`);
-            if (!response.ok) {
+            try {
+                const response = await fetch(`/api/jobs/${this.job.id}`);
+                if (!response.ok) {
+                    this.errorMessage = 'Lost connection while refreshing job status.';
+                    this.stopPolling();
+                    return;
+                }
+
+                this.job = await response.json() as JobSnapshot;
+            } catch {
+                this.errorMessage = 'Lost connection while refreshing job status.';
                 this.stopPolling();
                 return;
             }
 
-            this.job = await response.json() as JobSnapshot;
             if (this.job.status === 'completed' || this.job.status === 'failed') {
                 this.stopPolling();
+                return;
             }
-        }, 1500);
+
+            this.poller = window.setTimeout(() => {
+                void poll();
+            }, 1500);
+        };
+
+        void poll();
     }
 
     private stopPolling() {
