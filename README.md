@@ -51,6 +51,8 @@ Create a `.env` file in the root directory.
 ```env
 TEXT_MODEL_API_KEY=your_text_model_api_key_here
 AUDIO_MODEL_API_KEY=your_audio_model_api_key_here
+CONTENTFUL_SPACE_ID=your_contentful_space_id_here
+CONTENTFUL_MANAGEMENT_API_KEY=your_contentful_management_api_key_here
 ```
 
 Create a `config/config.json` file.
@@ -137,6 +139,14 @@ For example:
 npm start input/session1.mp3
 npm start input/dnd-recording.mp3
 ```
+
+### 3. Run the local UI
+
+```bash
+npm run dev-ui
+```
+
+Then open `http://localhost:3000` to upload an `.mp3` or `.m4a` file, monitor pipeline progress, and copy generated artifacts directly from the browser.
 
 This will generate six output files in the `output/` directory:
 - `story.txt` - Narrative summary

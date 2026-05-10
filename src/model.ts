@@ -20,19 +20,71 @@ import { config } from './config.js';
 
 export const NO_INSTRUCTIONS = 'NO_INSTRUCTIONS';
 
+export type ProcessingStepKey =
+    | 'prepare'
+    | 'transcribe'
+    | 'diarize'
+    | 'playByPlay'
+    | 'dmNotes'
+    | 'summarize'
+    | 'story'
+    | 'title'
+    | 'image'
+    | 'lyrics'
+    | 'song'
+    | 'publish';
+
+export type ProcessingStepState = 'in_progress' | 'completed';
+
+export type ProcessingArtifactKey =
+    | 'bulletPoints'
+    | 'playByPlay'
+    | 'dmNotes'
+    | 'summary'
+    | 'story'
+    | 'title'
+    | 'imagePrompt'
+    | 'lyricsPrompt'
+    | 'songPrompt';
+
+export interface ProcessingArtifact {
+    key: ProcessingArtifactKey;
+    label: string;
+    fileName: string;
+    content: string;
+}
+
+export interface SendAndSaveOptions {
+    onStepUpdate?: (step: {
+        key: ProcessingStepKey;
+        status: ProcessingStepState;
+        detail?: string;
+    }) => Promise<void> | void;
+    onArtifact?: (artifact: ProcessingArtifact) => Promise<void> | void;
+}
+
+export interface SendAndSaveResult {
+    outputDir: string;
+    audioFileBase: string;
+    artifacts: ProcessingArtifact[];
+}
+
 /**
  * @param audioFile The audio file to process
  * @param outputName The name of the output file
  * @param length The number of words per minute of audio
  * @param prompt The prompt to use for generation
  */
-export async function sendAndSave(audioFilePath: string): Promise<void> {
+export async function sendAndSave(audioFilePath: string, options: SendAndSaveOptions = {}): Promise<SendAndSaveResult> {
     const audioFile = path.basename(audioFilePath);
+    const artifacts: ProcessingArtifact[] = [];
     // Prepare output directory and prompts
     console.log(`🚀 Generating...`);
 
     // Prepare audio file (convert M4A to MP3 if needed)
+    await notifyStep(options, 'prepare', 'in_progress', 'Preparing audio for processing');
     const { processedAudioFile } = await prepareAudioFile(audioFile);
+    await notifyStep(options, 'prepare', 'completed', `Audio ready: ${processedAudioFile}`);
 
     const audioFileBase = path.basename(processedAudioFile, path.extname(processedAudioFile));
     const baseLength = await determineBaseLength(processedAudioFile);
@@ -50,74 +102,138 @@ export async function sendAndSave(audioFilePath: string): Promise<void> {
 
     // Create bullet point summary from the audio
     const bulletPointsPromptRendered = bulletPointsPrompt();
-    const bulletPoints = await sendAudioMessage(outputDir, processedAudioFile, instructions, bulletPointsPromptRendered);
-    const bulletPointsPath = path.join(outputDir, `${audioFileBase}-bullet-points.txt`);
-    await fs.writeFile(bulletPointsPath, bulletPoints, 'utf-8');
+    await notifyStep(options, 'transcribe', 'in_progress', 'Listening to the uploaded session');
+    await notifyStep(options, 'diarize', 'in_progress', 'Inferring speaker changes from the audio context');
+    const bulletPoints = await sendAudioMessage(outputDir, processedAudioFile, instructions, bulletPointsPromptRendered, options);
+    const bulletPointsPath = await saveArtifact(outputDir, {
+        key: 'bulletPoints',
+        label: 'Bullet Points',
+        fileName: `${audioFileBase}-bullet-points.txt`,
+        content: bulletPoints,
+    }, artifacts, options);
     console.log(`🚀 Bullet Points saved to ${bulletPointsPath}`);
+    await notifyStep(options, 'transcribe', 'completed', 'Transcript outline created');
+    await notifyStep(options, 'diarize', 'completed', 'Speaker context captured in bullet points');
 
     // Create session summary from the bullet points
     const playByPlayWordCount = Math.ceil(baseLength * 0.8);
     const playByPlayPromptRendered = playByPlayPrompt(bulletPoints, playByPlayWordCount);
+    await notifyStep(options, 'playByPlay', 'in_progress', `Generating a detailed recap (${playByPlayWordCount} words target)`);
     const playByPlay = await sendTextMessage(instructions, playByPlayPromptRendered);
-    const playByPlayPath = path.join(outputDir, `${audioFileBase}-play-by-play.txt`);
-    await fs.writeFile(playByPlayPath, playByPlay, 'utf-8');
+    const playByPlayPath = await saveArtifact(outputDir, {
+        key: 'playByPlay',
+        label: 'Play by Play',
+        fileName: `${audioFileBase}-play-by-play.txt`,
+        content: playByPlay,
+    }, artifacts, options);
     console.log(`🚀 Play by Play saved to ${playByPlayPath}`);
+    await notifyStep(options, 'playByPlay', 'completed', 'Detailed recap ready');
 
     // Create dm notes from the bullet points
     const dmNotesWordCount = Math.ceil(baseLength * 0.6);
     const dmNotesPromptRendered = dmNotesPrompt(bulletPoints, dmNotesWordCount);
+    await notifyStep(options, 'dmNotes', 'in_progress', `Drafting GM notes (${dmNotesWordCount} words target)`);
     const dmNotes = await sendTextMessage(instructions, dmNotesPromptRendered);
-    const dmNotesPath = path.join(outputDir, `${audioFileBase}-dm-notes.txt`);
-    await fs.writeFile(dmNotesPath, dmNotes, 'utf-8');
+    const dmNotesPath = await saveArtifact(outputDir, {
+        key: 'dmNotes',
+        label: 'DM Notes',
+        fileName: `${audioFileBase}-dm-notes.txt`,
+        content: dmNotes,
+    }, artifacts, options);
     console.log(`🚀 DM Notes saved to ${dmNotesPath}`);
+    await notifyStep(options, 'dmNotes', 'completed', 'GM notes are ready');
 
     // Create a summary from the bullet points
     const summaryWordCount = Math.ceil(baseLength * 0.4);
     const summaryPromptRendered = summaryPrompt(bulletPoints, summaryWordCount);
+    await notifyStep(options, 'summarize', 'in_progress', `Creating summary (${summaryWordCount} words target)`);
     const summary = await sendTextMessage(instructions, summaryPromptRendered);
-    const summaryPath = path.join(outputDir, `${audioFileBase}-summary.txt`);
-    await fs.writeFile(summaryPath, summary, 'utf-8');
+    const summaryPath = await saveArtifact(outputDir, {
+        key: 'summary',
+        label: 'Summary',
+        fileName: `${audioFileBase}-summary.txt`,
+        content: summary,
+    }, artifacts, options);
     console.log(`🚀 Summary saved to ${summaryPath}`);
+    await notifyStep(options, 'summarize', 'completed', 'Summary ready');
 
     // Create story from the bullet points
     const storyWordCount = Math.ceil(baseLength * 1.75);
     const storyPromptRendered = storyPrompt(bulletPoints, storyWordCount);
+    await notifyStep(options, 'story', 'in_progress', `Writing story (${storyWordCount} words target)`);
     const story = await sendTextMessage(instructions, storyPromptRendered);
-    const storyPath = path.join(outputDir, `${audioFileBase}-story.txt`);
-    await fs.writeFile(storyPath, story, 'utf-8');
+    const storyPath = await saveArtifact(outputDir, {
+        key: 'story',
+        label: 'Story',
+        fileName: `${audioFileBase}-story.txt`,
+        content: story,
+    }, artifacts, options);
     console.log(`🚀 Story saved to ${storyPath}`);
+    await notifyStep(options, 'story', 'completed', 'Narrative story ready');
 
     // Create title
     const titlePromptRendered = titlePrompt(story);
+    await notifyStep(options, 'title', 'in_progress', 'Generating a session title');
     const title = await sendTextMessage(NO_INSTRUCTIONS, titlePromptRendered);
-    const titlePath = path.join(outputDir, `${audioFileBase}-title.txt`);
-    await fs.writeFile(titlePath, title, 'utf-8');
+    const titlePath = await saveArtifact(outputDir, {
+        key: 'title',
+        label: 'Title',
+        fileName: `${audioFileBase}-title.txt`,
+        content: title,
+    }, artifacts, options);
     console.log(`🚀 Title saved to ${titlePath}`);
+    await notifyStep(options, 'title', 'completed', 'Title ready');
 
     // Create image prompt
     const imagePromptRendered = imagePrompt(story);
+    await notifyStep(options, 'image', 'in_progress', 'Generating an image prompt');
     const image = await sendTextMessage(NO_INSTRUCTIONS, imagePromptRendered);
-    const imagePath = path.join(outputDir, `${audioFileBase}-image-prompt.txt`);
-    await fs.writeFile(imagePath, image, 'utf-8');
+    const imagePath = await saveArtifact(outputDir, {
+        key: 'imagePrompt',
+        label: 'Image Prompt',
+        fileName: `${audioFileBase}-image-prompt.txt`,
+        content: image,
+    }, artifacts, options);
     console.log(`🚀 Image saved to ${imagePath}`);
+    await notifyStep(options, 'image', 'completed', 'Image prompt ready');
 
     // Create lyrics prompt
     const verseCount = Math.floor(Math.random() * 3) + 2; // Randomly choose between 2 and 4 verses
     const lyricsPromptRendered = lyricsPrompt(story, verseCount);
+    await notifyStep(options, 'lyrics', 'in_progress', `Writing lyrics with ${verseCount} verses`);
     const lyrics = await sendTextMessage(NO_INSTRUCTIONS, lyricsPromptRendered);
-    const lyricsPath = path.join(outputDir, `${audioFileBase}-lyrics-prompt.txt`);
-    await fs.writeFile(lyricsPath, lyrics, 'utf-8');
+    const lyricsPath = await saveArtifact(outputDir, {
+        key: 'lyricsPrompt',
+        label: 'Lyrics Prompt',
+        fileName: `${audioFileBase}-lyrics-prompt.txt`,
+        content: lyrics,
+    }, artifacts, options);
     console.log(`🚀 Lyrics saved to ${lyricsPath}`);
+    await notifyStep(options, 'lyrics', 'completed', 'Lyrics prompt ready');
 
     // Create song prompt
     const songPromptRendered = songPrompt(story, exampleSong, songMod);
+    await notifyStep(options, 'song', 'in_progress', 'Drafting the song prompt');
     const song = await sendTextMessage(NO_INSTRUCTIONS, songPromptRendered);
-    const songPath = path.join(outputDir, `${audioFileBase}-song-prompt.txt`);
-    await fs.writeFile(songPath, song, 'utf-8');
+    const songPath = await saveArtifact(outputDir, {
+        key: 'songPrompt',
+        label: 'Song Prompt',
+        fileName: `${audioFileBase}-song-prompt.txt`,
+        content: song,
+    }, artifacts, options);
     console.log(`🚀 Song saved to ${songPath}`);
+    await notifyStep(options, 'song', 'completed', 'Song prompt ready');
 
     console.log('🚀 Sending to Contentful');
+    await notifyStep(options, 'publish', 'in_progress', 'Sending the session to Contentful');
     await createEvent(title, summary, story, dmNotes);
+    await notifyStep(options, 'publish', 'completed', 'Contentful entry created');
+
+    return {
+        outputDir,
+        audioFileBase,
+        artifacts,
+    };
 }
 
 async function sendTextMessage(instructions: string, prompt: string): Promise<string> {
@@ -165,7 +281,13 @@ async function determineLengthInMinutes(audioFile: string): Promise<number> {
     return Math.ceil(duration / 60);
 }
 
-async function sendAudioMessage(outputDir: string, audioFile: string, instructions: string, prompt: string): Promise<string> {
+async function sendAudioMessage(
+    outputDir: string,
+    audioFile: string,
+    instructions: string,
+    prompt: string,
+    options: SendAndSaveOptions = {}
+): Promise<string> {
     console.log(`🚀 Starting processing for audio file: ${audioFile}`);
 
     const maxDuration = 45 * 60; // 45 minutes in seconds
@@ -179,7 +301,7 @@ async function sendAudioMessage(outputDir: string, audioFile: string, instructio
     }
 
     console.log('✂️  Audio is long, splitting into parts');
-    const bulletPoints = await splitAndListen(outputDir, audioFile, filePath, duration, maxDuration, instructions, prompt);
+    const bulletPoints = await splitAndListen(outputDir, audioFile, filePath, duration, maxDuration, instructions, prompt, options);
 
     // Save bulletPoints to file before synthesis
     const bulletPointsPath = path.join(outputDir, `${audioFile}-all-bullet-points.txt`);
@@ -233,7 +355,8 @@ async function splitAndListen(
     duration: number,
     maxDuration: number,
     instructions: string,
-    prompt: string
+    prompt: string,
+    options: SendAndSaveOptions = {}
 ): Promise<string[]> {
     const parts = Math.ceil(duration / maxDuration);
     const bulletPoints: string[] = [];
@@ -247,6 +370,8 @@ async function splitAndListen(
             const existingBulletPoints = await fs.readFile(progressFile, 'utf-8');
             if (existingBulletPoints) {
                 console.log(`⏭️  Skipping part ${partIndex}/${parts}`);
+                await notifyStep(options, 'transcribe', 'in_progress', `Loaded saved audio segment ${partIndex} of ${parts}`);
+                await notifyStep(options, 'diarize', 'in_progress', `Loaded saved speaker context ${partIndex} of ${parts}`);
                 bulletPoints.push(existingBulletPoints);
                 continue;
             }
@@ -255,6 +380,8 @@ async function splitAndListen(
         }
 
         console.log(`🎵 Processing part ${partIndex}/${parts}`);
+        await notifyStep(options, 'transcribe', 'in_progress', `Processing audio segment ${partIndex} of ${parts}`);
+        await notifyStep(options, 'diarize', 'in_progress', `Tracking speakers in segment ${partIndex} of ${parts}`);
         const startTime = i * maxDuration;
         const partDuration = Math.min(maxDuration, duration - startTime);
         const partFile = `${audioFile}_part_${partIndex}.mp3`;
@@ -413,4 +540,26 @@ function getSongMod(): string | undefined{
     }
     const randomIndex = Math.floor(Math.random() * modifiers.length);
     return modifiers[randomIndex];
+}
+
+async function notifyStep(
+    options: SendAndSaveOptions,
+    key: ProcessingStepKey,
+    status: ProcessingStepState,
+    detail?: string
+): Promise<void> {
+    await options.onStepUpdate?.({ key, status, detail });
+}
+
+async function saveArtifact(
+    outputDir: string,
+    artifact: ProcessingArtifact,
+    artifacts: ProcessingArtifact[],
+    options: SendAndSaveOptions
+): Promise<string> {
+    const artifactPath = path.join(outputDir, artifact.fileName);
+    await fs.writeFile(artifactPath, artifact.content, 'utf-8');
+    artifacts.push(artifact);
+    await options.onArtifact?.(artifact);
+    return artifactPath;
 }
