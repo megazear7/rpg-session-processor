@@ -13,7 +13,6 @@ const repoRoot = process.cwd();
 const inputDir = path.join(repoRoot, 'input');
 const sourcePublicDir = path.join(repoRoot, 'UI', 'public');
 const builtPublicDir = path.join(repoRoot, 'dist', 'UI', 'public');
-const builtSharedFile = path.join(repoRoot, 'dist', 'UI', 'shared.js');
 const PORT = Number(process.env.PORT || 3000);
 
 await fs.mkdir(inputDir, { recursive: true });
@@ -43,19 +42,8 @@ const upload = multer({
 });
 
 app.use(express.json());
-app.use('/node_modules', express.static(path.join(repoRoot, 'node_modules')));
-
-app.get('/styles.css', (_req, res) => {
-    res.sendFile(path.join(sourcePublicDir, 'styles.css'));
-});
-
-app.get('/app.js', (_req, res) => {
-    res.sendFile(path.join(builtPublicDir, 'app.js'));
-});
-
-app.get('/shared.js', (_req, res) => {
-    res.sendFile(builtSharedFile);
-});
+app.use(express.static(sourcePublicDir));
+app.use('/assets', express.static(builtPublicDir));
 
 app.get('/', (_req, res) => {
     res.sendFile(path.join(sourcePublicDir, 'index.html'));

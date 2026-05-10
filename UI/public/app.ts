@@ -1,48 +1,5 @@
 import { LitElement, css, html } from 'lit';
-
-const STEP_DEFINITIONS = [
-    { key: 'upload', label: 'Upload' },
-    { key: 'prepare', label: 'Prepare Audio' },
-    { key: 'transcribe', label: 'Transcribe' },
-    { key: 'diarize', label: 'Diarize' },
-    { key: 'playByPlay', label: 'Play by Play' },
-    { key: 'dmNotes', label: 'DM Notes' },
-    { key: 'summarize', label: 'Summarize' },
-    { key: 'story', label: 'Story' },
-    { key: 'title', label: 'Title' },
-    { key: 'image', label: 'Image Prompt' },
-    { key: 'lyrics', label: 'Lyrics Prompt' },
-    { key: 'song', label: 'Song Prompt' },
-    { key: 'publish', label: 'Publish' },
-] as const;
-
-type StepStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
-
-interface Step {
-    key: typeof STEP_DEFINITIONS[number]['key'];
-    label: string;
-    status: StepStatus;
-    detail?: string;
-}
-
-interface Artifact {
-    key: string;
-    label: string;
-    fileName: string;
-    content: string;
-}
-
-interface JobSnapshot {
-    id: string;
-    fileName: string;
-    status: 'queued' | 'in_progress' | 'completed' | 'failed';
-    progress: number;
-    createdAt: string;
-    updatedAt: string;
-    error?: string;
-    steps: Step[];
-    artifacts: Artifact[];
-}
+import { STEP_DEFINITIONS, type JobSnapshot, type Step } from '../shared-client.js';
 
 class RpgSessionUi extends LitElement {
     static properties = {
