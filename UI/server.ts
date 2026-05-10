@@ -45,10 +45,6 @@ app.use(express.json());
 app.use(express.static(sourcePublicDir));
 app.use('/assets', express.static(builtPublicDir));
 
-app.get('/', (_req, res) => {
-    res.sendFile(path.join(sourcePublicDir, 'index.html'));
-});
-
 app.get('/api/health', (_req, res) => {
     res.json({
         status: 'ok',
